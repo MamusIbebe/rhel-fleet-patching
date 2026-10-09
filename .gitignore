@@ -10,3 +10,4 @@ inventories/prod/hosts.yml
 inventories/monitoring_targets.yml
 reports/compliance/*.html
 *.tar.gz
+reports/inventory-*
