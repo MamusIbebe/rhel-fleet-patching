@@ -1,0 +1,2 @@
+hostname,env,public_ip,private_ip,instance_id,os,kernel,vcpus,ram_mb,uptime_days,last_patched
+dev01,dev,34.227.46.145,10.20.1.14,i-04dce9b627f921b35,RedHat 8.10,4.18.0-553.172.1.el8_10.x86_64,2,722,0.0,09 Oct 2026

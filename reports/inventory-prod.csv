@@ -1,0 +1,5 @@
+hostname,env,public_ip,private_ip,instance_id,os,kernel,vcpus,ram_mb,uptime_days,last_patched
+prod01,prod,3.89.252.40,10.20.2.67,i-022c5b31756168bb9,RedHat 9.6,5.14.0-687.56.1.el9_8.x86_64,2,717,0.0,09 Oct 2026
+prod02,prod,3.89.141.101,10.20.2.193,i-0225ecd59784dee50,RedHat 9.6,5.14.0-687.56.1.el9_8.x86_64,2,717,0.0,09 Oct 2026
+prod03,prod,107.20.54.28,10.20.2.148,i-018750af1cb918ca5,RedHat 9.6,5.14.0-687.56.1.el9_8.x86_64,2,717,0.0,09 Oct 2026
+prod04,prod,54.227.80.92,10.20.2.189,i-08b3f3e4f80abf764,RedHat 9.6,5.14.0-687.56.1.el9_8.x86_64,2,717,0.0,09 Oct 2026

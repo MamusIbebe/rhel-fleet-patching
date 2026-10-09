@@ -1,0 +1,5 @@
+hostname,env,public_ip,private_ip,instance_id,os,kernel,vcpus,ram_mb,uptime_days,last_patched
+{% for h in groups['linux'] %}
+{% set f = hostvars[h].ansible_facts %}
+{{ h }},{{ hostvars[h].env }},{{ hostvars[h].ansible_host }},{{ f.default_ipv4.address }},{{ hostvars[h].instance_id }},{{ f.distribution }} {{ f.distribution_version }},{{ f.kernel }},{{ f.processor_vcpus }},{{ f.memtotal_mb }},{{ (f.uptime_seconds / 86400) | round(1) }},{{ hostvars[h].last_patch.stdout }}
+{% endfor %}

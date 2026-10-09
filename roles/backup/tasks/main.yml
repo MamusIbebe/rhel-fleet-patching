@@ -1,0 +1,28 @@
+---
+# Archives /etc on each server and copies it to /srv/backups on the control node.
+
+- name: Archive /etc
+  ansible.builtin.command: >-
+    tar -czf /var/tmp/etc-{{ ansible_facts.date_time.date }}.tar.gz -C / etc
+  register: backup_tar
+  changed_when: true
+  # tar exits 1 when a file changed while it was being read; that is acceptable here
+  failed_when: backup_tar.rc > 1
+
+- name: Restrict the archive to root
+  ansible.builtin.file:
+    path: "/var/tmp/etc-{{ ansible_facts.date_time.date }}.tar.gz"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Copy the archive to the control node
+  ansible.builtin.fetch:
+    src: "/var/tmp/etc-{{ ansible_facts.date_time.date }}.tar.gz"
+    dest: "/srv/backups/{{ inventory_hostname }}/"
+    flat: true
+
+- name: Remove the copy left on the server
+  ansible.builtin.file:
+    path: "/var/tmp/etc-{{ ansible_facts.date_time.date }}.tar.gz"
+    state: absent

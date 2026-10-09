@@ -1,0 +1,10 @@
+<html><body>
+<h1>Server inventory</h1>
+<table border="1" cellpadding="6">
+<tr><th>Host</th><th>Env</th><th>Public IP</th><th>Private IP</th><th>Instance ID</th><th>OS</th><th>Kernel</th><th>vCPU</th><th>RAM MB</th><th>Uptime days</th><th>Last patched</th></tr>
+{% for h in groups['linux'] %}
+{% set f = hostvars[h].ansible_facts %}
+<tr><td>{{ h }}</td><td>{{ hostvars[h].env }}</td><td>{{ hostvars[h].ansible_host }}</td><td>{{ f.default_ipv4.address }}</td><td>{{ hostvars[h].instance_id }}</td><td>{{ f.distribution }} {{ f.distribution_version }}</td><td>{{ f.kernel }}</td><td>{{ f.processor_vcpus }}</td><td>{{ f.memtotal_mb }}</td><td>{{ (f.uptime_seconds / 86400) | round(1) }}</td><td>{{ hostvars[h].last_patch.stdout }}</td></tr>
+{% endfor %}
+</table>
+</body></html>

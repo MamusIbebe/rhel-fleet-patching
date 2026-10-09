@@ -1,0 +1,18 @@
+---
+- name: Prepare the backup store on the control node
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Create /srv/backups
+      ansible.builtin.file:
+        path: /srv/backups
+        state: directory
+        owner: "{{ lookup('ansible.builtin.env', 'USER') }}"
+        mode: "0700"
+      become: true
+
+- name: Back up server configuration
+  hosts: linux
+  roles:
+    - backup

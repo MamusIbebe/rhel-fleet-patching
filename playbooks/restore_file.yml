@@ -1,0 +1,44 @@
+---
+# Restores one file from the newest backup of a server.
+# Example:
+#   ansible-playbook playbooks/restore_file.yml -e target=dev01 -e restore_path=etc/motd
+- name: Restore a file from backup
+  hosts: "{{ target }}"
+  vars:
+    restore_workdir: "/tmp/restore-{{ inventory_hostname }}"
+  tasks:
+    - name: Find the newest backup on the control node
+      ansible.builtin.shell: |
+        set -o pipefail
+        ls -t /srv/backups/{{ inventory_hostname }}/etc-*.tar.gz | awk 'NR==1'
+      args:
+        executable: /bin/bash
+      register: restore_archive
+      changed_when: false
+      delegate_to: localhost
+      become: false
+
+    - name: Create a working folder on the control node
+      ansible.builtin.file:
+        path: "{{ restore_workdir }}"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+      become: false
+
+    - name: Extract the file from the backup
+      ansible.builtin.command: >-
+        tar -xzf {{ restore_archive.stdout }} -C {{ restore_workdir }} {{ restore_path }}
+      changed_when: true
+      delegate_to: localhost
+      become: false
+
+    - name: Put the file back on the server
+      ansible.builtin.copy:
+        src: "{{ restore_workdir }}/{{ restore_path }}"
+        dest: "/{{ restore_path }}"
+        mode: preserve
+
+    - name: Show what was restored
+      ansible.builtin.debug:
+        msg: "Restored /{{ restore_path }} on {{ inventory_hostname }} from {{ restore_archive.stdout }}"

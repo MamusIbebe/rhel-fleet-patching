@@ -1,0 +1,25 @@
+---
+- name: Collect facts from every server
+  hosts: linux
+  tasks:
+    - name: Find the date of the last package change
+      ansible.builtin.shell: |
+        set -o pipefail
+        rpm -qa --last | awk 'NR==1 {print $3, $4, $5}'
+      args:
+        executable: /bin/bash
+      register: last_patch
+      changed_when: false
+
+- name: Build the report on the control node
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Write CSV and HTML reports
+      ansible.builtin.template:
+        src: "inventory.{{ item }}.j2"
+        dest: "{{ playbook_dir }}/../reports/inventory-{{ hostvars[groups['linux'][0]].env }}.{{ item }}"
+        mode: "0644"
+      loop: [csv, html]
