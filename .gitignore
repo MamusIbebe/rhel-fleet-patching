@@ -1,0 +1,12 @@
+*.retry
+vault.yml
+.vault_pass
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+inventories/dev/hosts.yml
+inventories/prod/hosts.yml
+inventories/monitoring_targets.yml
+reports/compliance/*.html
+*.tar.gz

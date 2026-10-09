@@ -1,0 +1,6 @@
+---
+- name: Apply baseline configuration
+  hosts: linux
+  roles:
+    - swap
+    - baseline

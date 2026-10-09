@@ -1,0 +1,6 @@
+---
+- name: Measure servers against the compliance profile
+  hosts: linux
+  roles:
+    - swap
+    - compliance

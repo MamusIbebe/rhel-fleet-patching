@@ -1,0 +1,49 @@
+---
+# Password quality and account ageing. These settings apply to password logins;
+# key-based SSH and Ansible's sudo access are not affected.
+
+- name: Set password quality requirements (IA-5)
+  ansible.builtin.lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: "^#?\\s*{{ item.key }}\\b"
+    line: "{{ item.key }} = {{ item.value }}"
+  loop: "{{ baseline_pwquality | dict2items }}"
+
+- name: Apply password quality rules to root as well (IA-5)
+  ansible.builtin.lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: "^#?\\s*enforce_for_root\\b"
+    line: enforce_for_root
+
+- name: Set maximum password age for new accounts (IA-5)
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: "^PASS_MAX_DAYS\\s"
+    line: "PASS_MAX_DAYS {{ baseline_pass_max_days }}"
+
+- name: Disable new accounts after a period of inactivity (AC-2)
+  ansible.builtin.lineinfile:
+    path: /etc/default/useradd
+    regexp: "^INACTIVE="
+    line: "INACTIVE={{ baseline_inactive_days }}"
+
+- name: Check whether authselect manages PAM
+  ansible.builtin.command: authselect current
+  register: baseline_authselect
+  changed_when: false
+  failed_when: false
+
+- name: Refuse empty passwords through authselect (IA-5)
+  ansible.builtin.command: authselect enable-feature without-nullok
+  changed_when: true
+  when:
+    - baseline_authselect.rc == 0
+    - "'without-nullok' not in baseline_authselect.stdout"
+
+- name: Refuse empty passwords in the PAM files (IA-5)
+  ansible.builtin.replace:
+    path: "/etc/pam.d/{{ item }}"
+    regexp: "\\s+nullok"
+    replace: ""
+  loop: [system-auth, password-auth]
+  when: baseline_authselect.rc != 0

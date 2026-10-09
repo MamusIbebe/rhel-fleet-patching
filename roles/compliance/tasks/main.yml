@@ -1,0 +1,58 @@
+---
+- name: Install OpenSCAP and the SCAP Security Guide
+  ansible.builtin.dnf:
+    name: [openscap-scanner, scap-security-guide]
+    state: present
+
+- name: Run the compliance scan (several minutes per server)
+  ansible.builtin.command: >-
+    oscap xccdf eval
+    --profile xccdf_org.ssgproject.content_profile_{{ compliance_profile }}
+    --results /var/tmp/compliance-results.xml
+    --report /var/tmp/compliance-report.html
+    /usr/share/xml/scap/ssg/content/ssg-rhel{{ ansible_facts.distribution_major_version }}-ds.xml
+  register: compliance_scan
+  changed_when: false
+  # oscap returns 0 when every rule passes and 2 when some fail; 1 is a real error
+  failed_when: compliance_scan.rc not in [0, 2]
+
+- name: Count passed and failed rules
+  ansible.builtin.set_fact:
+    compliance_pass: "{{ compliance_scan.stdout | regex_findall('Result\\s+pass') | length }}"
+    compliance_fail: "{{ compliance_scan.stdout | regex_findall('Result\\s+fail') | length }}"
+
+- name: Work out the score
+  ansible.builtin.set_fact:
+    compliance_score: >-
+      {{ (100 * (compliance_pass | int) / ([(compliance_pass | int) + (compliance_fail | int), 1] | max)) | round(1) }}
+
+- name: Read the OpenSCAP weighted score
+  ansible.builtin.shell: |
+    set -o pipefail
+    grep -o '<score [^>]*>[0-9.]*' /var/tmp/compliance-results.xml | head -1 | sed 's/.*>//'
+  args:
+    executable: /bin/bash
+  register: compliance_oscap_score
+  changed_when: false
+
+- name: Show the score
+  ansible.builtin.debug:
+    msg: >-
+      {{ inventory_hostname }}: {{ compliance_pass }} passed, {{ compliance_fail }} failed
+      against {{ compliance_profile }}. OpenSCAP score {{ compliance_oscap_score.stdout | float | round(2) }}%
+
+- name: Copy the HTML report to the control node
+  ansible.builtin.fetch:
+    src: /var/tmp/compliance-report.html
+    dest: "{{ playbook_dir }}/../reports/compliance/{{ inventory_hostname }}-{{ compliance_profile }}-{{ ansible_facts.date_time.iso8601_basic_short }}.html"
+    flat: true
+
+- name: Record the score on the control node
+  ansible.builtin.lineinfile:
+    path: "{{ playbook_dir }}/../reports/compliance-log.csv"
+    line: "{{ ansible_facts.date_time.iso8601 }},{{ inventory_hostname }},{{ env }},{{ compliance_profile }},{{ compliance_pass }},{{ compliance_fail }},{{ compliance_score }},{{ compliance_oscap_score.stdout | float | round(2) }}"
+    create: true
+    mode: "0644"
+  delegate_to: localhost
+  become: false
+  throttle: 1

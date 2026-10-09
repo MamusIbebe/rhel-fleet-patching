@@ -1,0 +1,28 @@
+---
+# A 1 GB cloud server runs out of memory during dnf and compliance scans.
+# This role adds a swap file and must run before any other role.
+
+- name: Check for active swap
+  ansible.builtin.command: swapon --noheadings --show
+  register: swap_active
+  changed_when: false
+
+- name: Create the swap file
+  ansible.builtin.shell: |
+    set -e
+    dd if=/dev/zero of=/swapfile bs=1M count={{ swap_size_mb }}
+    chmod 600 /swapfile
+    mkswap /swapfile
+  args:
+    creates: /swapfile
+
+- name: Activate the swap file
+  ansible.builtin.command: swapon /swapfile
+  changed_when: true
+  when: "'/swapfile' not in swap_active.stdout"
+
+- name: Keep swap across reboots
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: "^/swapfile\\s"
+    line: "/swapfile none swap sw 0 0"

@@ -1,0 +1,32 @@
+---
+# AIDE records a fingerprint of system files and reports any that change.
+
+- name: Install AIDE and cron (SI-7)
+  ansible.builtin.dnf:
+    name: [aide, cronie]
+    state: present
+
+- name: Have AIDE watch the audit tools (SI-7, AU-9)
+  ansible.builtin.blockinfile:
+    path: /etc/aide.conf
+    marker: "# {mark} ANSIBLE MANAGED - audit tools"
+    block: |
+      {% for tool in baseline_aide_audit_tools %}
+      {{ tool }} p+i+n+u+g+s+b+acl+xattrs+sha512
+      {% endfor %}
+
+- name: Build the AIDE database (a few minutes on first run) (SI-7)
+  ansible.builtin.shell: |
+    set -e
+    /usr/sbin/aide --init
+    cp -p /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz
+  args:
+    creates: /var/lib/aide/aide.db.gz
+
+- name: Check file integrity every night (SI-7)
+  ansible.builtin.cron:
+    name: aide-check
+    user: root
+    minute: "5"
+    hour: "4"
+    job: /usr/sbin/aide --check

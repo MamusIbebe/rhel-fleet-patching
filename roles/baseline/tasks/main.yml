@@ -1,0 +1,102 @@
+---
+# Each task name ends with the NIST SP 800-53 control it supports.
+
+- name: Install baseline packages (CM-6)
+  ansible.builtin.dnf:
+    name: [chrony, firewalld, audit, rsync, tar, yum-utils]
+    state: present
+
+- name: Enable time sync, firewall and audit logging (AU-8, SC-7, AU-12)
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop: [chronyd, firewalld, auditd]
+
+- name: Keep SELinux enforcing (AC-3, AC-6)
+  ansible.posix.selinux:
+    policy: targeted
+    state: enforcing
+
+- name: Set the login warning banner (AC-8)
+  ansible.builtin.copy:
+    dest: "{{ item }}"
+    content: "{{ baseline_banner }}"
+    mode: "0644"
+  loop: [/etc/issue, /etc/issue.net]
+
+- name: Set the message of the day
+  ansible.builtin.copy:
+    dest: /etc/motd
+    content: "{{ inventory_hostname }} ({{ env }}) - managed by Ansible\n"
+    mode: "0644"
+
+# Version-specific: EL9 reads drop-in files first, EL8 has only the main file
+- name: Harden SSH with a drop-in file, EL9 (AC-17, IA-2, AC-12)
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/00-baseline.conf
+    content: |
+      # Managed by Ansible - baseline role
+      {% for key, value in baseline_sshd_settings.items() %}
+      {{ key }} {{ value }}
+      {% endfor %}
+    mode: "0600"
+    validate: /usr/sbin/sshd -t -f %s
+  when: ansible_facts.distribution_major_version | int >= 9
+  notify: Restart sshd
+
+- name: Harden SSH in sshd_config, EL8 (AC-17, IA-2, AC-12)
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?\\s*{{ item.key }}\\s"
+    line: "{{ item.key }} {{ item.value }}"
+    validate: /usr/sbin/sshd -t -f %s
+  loop: "{{ baseline_sshd_settings | dict2items }}"
+  when: ansible_facts.distribution_major_version == "8"
+  notify: Restart sshd
+
+- name: Restrict sshd_config permissions (AC-6)
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Apply kernel network and memory hardening (SC-5, SC-7, SI-16)
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/60-baseline.conf
+    sysctl_set: true
+    reload: true
+  loop: "{{ baseline_sysctl | dict2items }}"
+
+- name: Disable unused filesystem modules (CM-7)
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/baseline-disable-fs.conf
+    content: |
+      install cramfs /bin/false
+      blacklist cramfs
+      install udf /bin/false
+      blacklist udf
+    mode: "0644"
+
+# Version-specific: EL9 already rejects SHA-1, EL8 needs it switched off
+- name: Read crypto policy, EL8 (SC-13)
+  ansible.builtin.command: update-crypto-policies --show
+  register: baseline_crypto
+  changed_when: false
+  when: ansible_facts.distribution_major_version == "8"
+
+- name: Disable SHA-1, EL8 (SC-13)
+  ansible.builtin.command: update-crypto-policies --set DEFAULT:NO-SHA1
+  changed_when: true
+  when:
+    - ansible_facts.distribution_major_version == "8"
+    - baseline_crypto.stdout != "DEFAULT:NO-SHA1"
+
+- name: Account and password policy
+  ansible.builtin.import_tasks: accounts.yml
+
+- name: File integrity monitoring
+  ansible.builtin.import_tasks: integrity.yml

@@ -1,0 +1,4 @@
+---
+# SCAP Security Guide profile to measure against. Other profiles shipped with RHEL
+# include: cis (Level 2), stig (DISA STIG), cui (NIST SP 800-171), pci-dss, hipaa.
+compliance_profile: cis_server_l1

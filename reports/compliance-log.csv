@@ -1,0 +1,13 @@
+2026-10-09T18:35:06Z,dev01,dev,cis_server_l1,183,115,61.4
+2026-10-09T18:40:27Z,dev01,dev,cis_server_l1,183,115,61.4
+2026-10-09T18:57:42Z,dev01,dev,cis_server_l1,207,93,69.0
+2026-10-09T19:08:49Z,dev01,dev,cis_server_l1,207,93,69.0
+2026-10-09T19:18:58Z,dev01,dev,cis_server_l1,220,80,73.3,83.26
+2026-10-09T19:28:09Z,prod01,prod,cis_server_l1,154,106,59.2,76.42
+2026-10-09T19:28:10Z,prod02,prod,cis_server_l1,154,106,59.2,76.42
+2026-10-09T19:28:09Z,prod03,prod,cis_server_l1,154,106,59.2,76.42
+2026-10-09T19:28:09Z,prod04,prod,cis_server_l1,154,106,59.2,76.42
+2026-10-09T19:33:11Z,prod01,prod,cis_server_l1,192,70,73.3,80.02
+2026-10-09T19:33:11Z,prod02,prod,cis_server_l1,192,70,73.3,80.02
+2026-10-09T19:33:11Z,prod03,prod,cis_server_l1,192,70,73.3,80.02
+2026-10-09T19:33:11Z,prod04,prod,cis_server_l1,192,70,73.3,80.02
