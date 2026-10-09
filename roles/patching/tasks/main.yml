@@ -1,0 +1,12 @@
+---
+- name: Pre-checks
+  ansible.builtin.import_tasks: precheck.yml
+
+- name: Snapshot
+  ansible.builtin.import_tasks: snapshot.yml
+
+- name: Patch
+  ansible.builtin.import_tasks: patch.yml
+
+- name: Post-checks
+  ansible.builtin.import_tasks: postcheck.yml

@@ -1,0 +1,19 @@
+---
+- name: Apply updates
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+    security: "{{ patching_security_only }}"
+    update_cache: true
+  register: patching_result
+
+- name: Check whether a reboot is required
+  ansible.builtin.command: needs-restarting -r
+  register: patching_reboot_check
+  changed_when: false
+  failed_when: patching_reboot_check.rc not in [0, 1]
+
+- name: Reboot if required
+  ansible.builtin.reboot:
+    reboot_timeout: 600
+  when: patching_reboot_check.rc == 1

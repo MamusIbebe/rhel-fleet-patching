@@ -1,0 +1,5 @@
+---
+patching_security_only: true
+patching_min_free_mb: 1024
+patching_critical_services: [sshd, chronyd, firewalld, auditd]
+patching_ec2_snapshot: true

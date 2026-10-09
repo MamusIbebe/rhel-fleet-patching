@@ -1,0 +1,22 @@
+---
+- name: Check free space on /
+  ansible.builtin.assert:
+    that: >-
+      (ansible_facts.mounts | selectattr('mount', 'equalto', '/') | first).size_available
+      > patching_min_free_mb * 1024 * 1024
+    fail_msg: "Not enough free space on / to patch safely"
+    quiet: true
+
+- name: Make sure the reboot-check tool is installed
+  ansible.builtin.dnf:
+    name: yum-utils
+    state: present
+
+- name: Count failed systemd units before patching
+  ansible.builtin.command: systemctl --failed --no-legend
+  register: patching_pre_failed
+  changed_when: false
+
+- name: Remember the running kernel
+  ansible.builtin.set_fact:
+    patching_pre_kernel: "{{ ansible_facts.kernel }}"

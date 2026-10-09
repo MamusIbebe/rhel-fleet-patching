@@ -1,0 +1,31 @@
+---
+# Runs the AWS CLI on the control node, using the instance ID Terraform wrote
+# into the inventory. The snapshot captures the disk as it is at this moment.
+- name: Snapshot the server's disk before patching
+  ansible.builtin.command:
+    argv:
+      - aws
+      - ec2
+      - create-snapshots
+      - --region
+      - "{{ aws_region }}"
+      - --instance-specification
+      - "InstanceId={{ instance_id }}"
+      - --description
+      - "pre-patch {{ inventory_hostname }} {{ ansible_facts.date_time.iso8601 }}"
+      - --tag-specifications
+      - "ResourceType=snapshot,Tags=[{Key=Name,Value=pre-patch-{{ inventory_hostname }}},{Key=project,Value=rhel-fleet-patching}]"
+      - --query
+      - "Snapshots[0].SnapshotId"
+      - --output
+      - text
+  register: patching_snapshot
+  changed_when: true
+  delegate_to: localhost
+  become: false
+  when: patching_ec2_snapshot | bool
+
+- name: Show the snapshot ID
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }} snapshot: {{ patching_snapshot.stdout }}"
+  when: patching_ec2_snapshot | bool

@@ -1,0 +1,10 @@
+---
+- name: Rolling patching
+  hosts: linux
+  serial:
+    - 1
+    - "50%"
+  max_fail_percentage: 0
+  roles:
+    - swap
+    - patching

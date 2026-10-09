@@ -1,0 +1,55 @@
+---
+- name: Refresh facts after patching
+  ansible.builtin.setup:
+
+- name: Gather service state
+  ansible.builtin.service_facts:
+
+- name: Critical services must be running
+  ansible.builtin.assert:
+    that: >-
+      (ansible_facts.services[item ~ '.service'] | default({})).state
+      | default('missing') == 'running'
+    fail_msg: "{{ item }} is not running after patching"
+    quiet: true
+  loop: "{{ patching_critical_services }}"
+
+- name: Count failed systemd units after patching
+  ansible.builtin.command: systemctl --failed --no-legend
+  register: patching_post_failed
+  changed_when: false
+
+- name: No new failed units
+  ansible.builtin.assert:
+    that: patching_post_failed.stdout_lines | length <= patching_pre_failed.stdout_lines | length
+    fail_msg: "New failed units: {{ patching_post_failed.stdout }}"
+    quiet: true
+
+- name: Check for an AIDE database
+  ansible.builtin.stat:
+    path: /var/lib/aide/aide.db.gz
+  register: patching_aide_db
+
+# Patching changes system files on purpose, so the integrity baseline is renewed.
+# aide --update exits 1-7 when it finds changes; 14 and above are real errors.
+- name: Renew the AIDE database after patching
+  ansible.builtin.shell: |
+    /usr/sbin/aide --update
+    rc=$?
+    if [ "$rc" -gt 7 ]; then exit "$rc"; fi
+    cp -p /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz
+  changed_when: true
+  when:
+    - patching_result.changed
+    - patching_aide_db.stat.exists
+
+- name: Record the result on the control node
+  ansible.builtin.lineinfile:
+    path: "{{ playbook_dir }}/../reports/patch-log.csv"
+    line: >-
+      {{ ansible_facts.date_time.iso8601 }},{{ inventory_hostname }},{{ env }},{{ patching_pre_kernel }},{{ ansible_facts.kernel }},{{ patching_result.changed }},{{ patching_reboot_check.rc == 1 }},{{ patching_snapshot.stdout | default('none') }}
+    create: true
+    mode: "0644"
+  delegate_to: localhost
+  become: false
+  throttle: 1
