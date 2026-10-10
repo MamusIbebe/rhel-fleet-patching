@@ -1,0 +1,22 @@
+---
+name: lint
+on: [push, pull_request]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: hashicorp/setup-terraform@v3
+      - name: Install tools
+        run: pip install ansible-core ansible-lint yamllint
+      - name: Install Ansible collections
+        run: ansible-galaxy collection install -r requirements.yml
+      - name: YAML lint
+        run: yamllint .
+      - name: Ansible lint
+        run: ansible-lint
+      - name: Terraform format check
+        run: terraform -chdir=terraform fmt -check

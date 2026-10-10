@@ -1,0 +1,17 @@
+---
+# Run against both inventories so Prometheus watches the whole fleet:
+#   ansible-playbook playbooks/monitoring.yml -i inventories/dev/hosts.yml -i inventories/prod/hosts.yml
+- name: Install node_exporter on every server
+  hosts: linux
+  roles:
+    - swap
+    - node_exporter
+
+- name: Install Prometheus and Grafana on the control node
+  hosts: localhost
+  connection: local
+  vars:
+    # The system Python has the dnf bindings that package installs need
+    ansible_python_interpreter: /usr/bin/python3
+  roles:
+    - prometheus_server

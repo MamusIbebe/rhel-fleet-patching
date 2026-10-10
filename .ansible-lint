@@ -1,0 +1,10 @@
+---
+# Rules skipped on purpose, with the reason for each.
+skip_list:
+  - package-latest             # patching installs the latest packages by design
+  - command-instead-of-module  # tar, systemctl and firewall-cmd are used for read-only checks and simple archives
+  - var-naming[no-role-prefix] # short, readable variable names are kept in this small project
+exclude_paths:
+  - .github/
+  - inventories/
+  - terraform/

@@ -3,7 +3,7 @@
 # Example:
 #   ansible-playbook playbooks/restore_file.yml -e target=dev01 -e restore_path=etc/motd
 - name: Restore a file from backup
-  hosts: "{{ target }}"
+  hosts: "{{ target | default('no_target_given') }}"
   vars:
     restore_workdir: "/tmp/restore-{{ inventory_hostname }}"
   tasks:

@@ -1,0 +1,149 @@
+---
+# Prometheus collects the metrics; Grafana draws the dashboards.
+
+- name: Create the prometheus user
+  ansible.builtin.user:
+    name: prometheus
+    system: true
+    shell: /sbin/nologin
+    create_home: false
+
+- name: Create Prometheus folders
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: prometheus
+    group: prometheus
+    mode: "0755"
+  loop: [/etc/prometheus, /var/lib/prometheus]
+
+- name: Download Prometheus
+  ansible.builtin.get_url:
+    url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+    dest: "/var/tmp/prometheus-{{ prometheus_version }}.tar.gz"
+    mode: "0644"
+
+- name: Unpack Prometheus
+  ansible.builtin.unarchive:
+    src: "/var/tmp/prometheus-{{ prometheus_version }}.tar.gz"
+    dest: /opt
+    remote_src: true
+    creates: "/opt/prometheus-{{ prometheus_version }}.linux-amd64/prometheus"
+
+- name: Install the Prometheus binaries
+  ansible.builtin.copy:
+    src: "/opt/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+  loop: [prometheus, promtool]
+  notify: Restart prometheus
+
+- name: Install the alert rules
+  ansible.builtin.copy:
+    src: rules.yml
+    dest: /etc/prometheus/rules.yml
+    owner: prometheus
+    group: prometheus
+    mode: "0644"
+  notify: Restart prometheus
+
+- name: Write the Prometheus configuration from the inventory
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+    owner: prometheus
+    group: prometheus
+    mode: "0644"
+  notify: Restart prometheus
+
+- name: Check the configuration is valid
+  ansible.builtin.command: /usr/local/bin/promtool check config /etc/prometheus/prometheus.yml
+  changed_when: false
+
+- name: Install the Prometheus systemd unit
+  ansible.builtin.template:
+    src: prometheus.service.j2
+    dest: /etc/systemd/system/prometheus.service
+    mode: "0644"
+  notify: Restart prometheus
+
+- name: Enable and start Prometheus
+  ansible.builtin.systemd:
+    name: prometheus
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Add the Grafana repository
+  ansible.builtin.yum_repository:
+    name: grafana
+    description: Grafana OSS
+    baseurl: https://rpm.grafana.com
+    gpgcheck: true
+    gpgkey: https://rpm.grafana.com/gpg.key
+
+- name: Install Grafana
+  ansible.builtin.dnf:
+    name: grafana
+    state: present
+
+- name: Connect Grafana to Prometheus
+  ansible.builtin.copy:
+    src: grafana-datasource.yml
+    dest: /etc/grafana/provisioning/datasources/prometheus.yml
+    owner: root
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+
+- name: Create the dashboard folder
+  ansible.builtin.file:
+    path: /var/lib/grafana/dashboards
+    state: directory
+    owner: grafana
+    group: grafana
+    mode: "0755"
+
+- name: Tell Grafana where to load dashboards from
+  ansible.builtin.copy:
+    src: grafana-dashboards.yml
+    dest: /etc/grafana/provisioning/dashboards/fleet.yml
+    owner: root
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+
+- name: Install the fleet status dashboard
+  ansible.builtin.copy:
+    src: fleet-status.json
+    dest: /var/lib/grafana/dashboards/fleet-status.json
+    owner: grafana
+    group: grafana
+    mode: "0644"
+  notify: Restart grafana
+
+- name: Enable and start Grafana
+  ansible.builtin.systemd:
+    name: grafana-server
+    state: started
+    enabled: true
+
+- name: Check whether the firewall is running
+  ansible.builtin.command: systemctl is-active firewalld
+  register: prometheus_firewalld
+  changed_when: false
+  failed_when: false
+
+- name: Open the Prometheus and Grafana ports
+  ansible.builtin.command: firewall-cmd --permanent --add-port=9090/tcp --add-port=3000/tcp
+  register: prometheus_fw
+  changed_when: "'ALREADY_ENABLED' not in prometheus_fw.stderr"
+  when: prometheus_firewalld.stdout == 'active'
+
+- name: Reload the firewall
+  ansible.builtin.command: firewall-cmd --reload
+  changed_when: false
+  when: prometheus_firewalld.stdout == 'active'

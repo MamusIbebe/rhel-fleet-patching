@@ -1,0 +1,53 @@
+---
+# node_exporter publishes CPU, memory and disk metrics on port 9100.
+
+- name: Create the node_exporter user
+  ansible.builtin.user:
+    name: node_exporter
+    system: true
+    shell: /sbin/nologin
+    create_home: false
+
+- name: Download node_exporter
+  ansible.builtin.get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+    dest: "/var/tmp/node_exporter-{{ node_exporter_version }}.tar.gz"
+    mode: "0644"
+
+- name: Unpack node_exporter
+  ansible.builtin.unarchive:
+    src: "/var/tmp/node_exporter-{{ node_exporter_version }}.tar.gz"
+    dest: /opt
+    remote_src: true
+    creates: "/opt/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+
+- name: Install the node_exporter binary
+  ansible.builtin.copy:
+    src: "/opt/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+    dest: /usr/local/bin/node_exporter
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart node_exporter
+
+- name: Install the systemd unit
+  ansible.builtin.template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    mode: "0644"
+  notify: Restart node_exporter
+
+- name: Enable and start node_exporter
+  ansible.builtin.systemd:
+    name: node_exporter
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Open the metrics port in the host firewall
+  ansible.posix.firewalld:
+    port: 9100/tcp
+    permanent: true
+    immediate: true
+    state: enabled
