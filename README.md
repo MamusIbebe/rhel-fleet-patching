@@ -11,29 +11,7 @@ keeping servers consistent, patched, observable and documented.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    subgraph laptop["Laptop: VMware Workstation"]
-        subgraph esxi["VMware ESXi 8 (nested)"]
-            control["control01 - RHEL 9<br/>Terraform, Ansible<br/>Prometheus, Grafana<br/>backups, reports"]
-        end
-    end
-    subgraph aws["AWS VPC 10.20.0.0/16"]
-        subgraph devnet["dev subnet 10.20.1.0/24"]
-            dev01["dev01 - RHEL 8"]
-        end
-        subgraph prodnet["prod subnet 10.20.2.0/24"]
-            prod["prod01 to prod04 - RHEL 9"]
-        end
-    end
-    github["GitHub<br/>code, docs, CI lint"]
-    control -- "Terraform: build" --> aws
-    control -- "Ansible over SSH" --> dev01
-    control -- "Ansible over SSH" --> prod
-    dev01 -. "metrics :9100" .-> control
-    prod -. "metrics :9100" .-> control
-    control <--> github
-```
+![Architecture](docs/images/architecture.png)
 
 | Layer | What is used |
 | --- | --- |
